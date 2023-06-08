@@ -14,6 +14,7 @@ $Global:Spacing = "`t"
 $Global:PlusLine = "`t[+]"
 $Global:ErrorLine = "`t[-]"
 $Global:InfoLine = "`t[*]"
+#$Global:Path = "OU=HobinUsers,DC=hobin,DC=sevenkingdoms,DC=local"
 function Write-Good { param( $String ) Write-Host $Global:PlusLine  $String -ForegroundColor 'Green'}
 function Write-Bad  { param( $String ) Write-Host $Global:ErrorLine $String -ForegroundColor 'red'  }
 function Write-Info { param( $String ) Write-Host $Global:InfoLine $String -ForegroundColor 'gray' }
@@ -43,7 +44,7 @@ function VulnAD-AddADGroup {
         for ($i=1; $i -le (Get-Random -Maximum 20); $i=$i+1 ) {
             $randomuser = (VulnAD-GetRandom -InputList $Global:CreatedUsers)
             Write-Info "Adding $randomuser to $group"
-            Try { Add-ADGroupMember -Identity $group -Members $randomuser } Catch {}
+            Try { Add-ADGroupMember -Identity $group -Members $randomuser -Path $Global:Path} Catch {}
         }
         $Global:AllObjects += $group;
     }
@@ -61,7 +62,7 @@ function VulnAD-AddADUser {
         $principalname = "{0}.{1}" -f ($firstname, $lastname);
         $generated_password = ([System.Web.Security.Membership]::GeneratePassword(12,2))
         Write-Info "Creating $SamAccountName User"
-        Try { New-ADUser -Name "$firstname $lastname" -GivenName $firstname -Surname $lastname -SamAccountName $SamAccountName -UserPrincipalName $principalname@$Global:Domain -AccountPassword (ConvertTo-SecureString $generated_password -AsPlainText -Force) -PassThru | Enable-ADAccount } Catch {}
+        Try { New-ADUser -Name "$firstname $lastname" -Path $Global:Path -GivenName $firstname -Surname $lastname -SamAccountName $SamAccountName -UserPrincipalName $principalname@$Global:Domain -AccountPassword (ConvertTo-SecureString $generated_password -AsPlainText -Force) -PassThru | Enable-ADAccount } Catch {}
         $Global:CreatedUsers += $SamAccountName;
     }
 
@@ -217,15 +218,21 @@ function VulnAD-DisableSMBSigning {
 function Invoke-VulnAD {
     Param(
         [int]$UsersLimit = 100,
-        [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True,Position=1)]
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
         [ValidateNotNullOrEmpty()]
         [System.String]
-        $DomainName
+        $DomainName,
+        [Parameter(Mandatory = $false)]
+        [string]$Path
     )
     ShowBanner
     $Global:Domain = $DomainName
+    if ($Path -ne $null) {
+        $Global:Path = $Path
+    }
+
     Set-ADDefaultDomainPasswordPolicy -Identity $Global:Domain -LockoutDuration 00:01:00 -LockoutObservationWindow 00:01:00 -ComplexityEnabled $false -ReversibleEncryptionEnabled $False -MinPasswordLength 4
-    VulnAD-AddADUser -limit $UsersLimit
+    VulnAD-AddADUser -limit $UsersLimit 
     Write-Good "Users Created"
     VulnAD-AddADGroup -GroupList $Global:HighGroups
     Write-Good "$Global:HighGroups Groups Created"
