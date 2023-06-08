@@ -37,6 +37,13 @@ IEX((new-object net.webclient).downloadstring("https://raw.githubusercontent.com
 Invoke-VulnAD -UsersLimit 100 -DomainName "cs.org"
 ```
 
+### Implemented Changes in this FOrk
+
+08 June 2023 - Added the ability to set the Path where users are created.  By default they are created in the built-in Users container. 
+```
+Invoke-VulnAD -UsersLimit 2 -DomainName "hobin.sevenkingdoms.local" -Path "OU=HobinUsers2,DC=hobin,DC=sevenkingdoms,DC=local"
+```
+
 ### TODO
 - Play with workstations !
 - Click close issue button on github
